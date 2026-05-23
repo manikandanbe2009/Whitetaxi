@@ -2,16 +2,16 @@
 require_once __DIR__ . '/config.php';
 
 $defaultBookingData = [
-    'trip_type' => 'one-way',
-    'name' => '',
-    'mobile' => '',
-    'email' => '',
-    'trip_days' => '',
-    'pickup' => '',
-    'drop' => '',
-    'distance_km' => '',
-    'date' => '2026-05-25',
-    'time' => '10:00',
+  'trip_type' => 'one-way',
+  'name' => '',
+  'mobile' => '',
+  'email' => '',
+  'trip_days' => '',
+  'pickup' => '',
+  'drop' => '',
+  'distance_km' => '',
+  'date' => '2026-05-25',
+  'time' => '10:00',
 ];
 $bookingStatus = false;
 $bookingData = $defaultBookingData;
@@ -20,101 +20,102 @@ $bookingSuccess = '';
 $estimationResults = [];
 $googleMapsApiKey = env_value('GOOGLE_MAPS_API_KEY');
 $carRateTable = [
-    'SEDAN' => ['base_fare' => 150, 'per_km' => 14, 'driver_allowance' => 300],
-    'ETIOS' => ['base_fare' => 140, 'per_km' => 13, 'driver_allowance' => 300],
-    'SUV' => ['base_fare' => 220, 'per_km' => 19, 'driver_allowance' => 400],
-    'INNOVA' => ['base_fare' => 260, 'per_km' => 20, 'driver_allowance' => 450],
+  'SEDAN' => ['base_fare' => 150, 'per_km' => 14, 'driver_allowance' => 300],
+  'ETIOS' => ['base_fare' => 140, 'per_km' => 13, 'driver_allowance' => 300],
+  'SUV' => ['base_fare' => 220, 'per_km' => 19, 'driver_allowance' => 400],
+  'INNOVA' => ['base_fare' => 260, 'per_km' => 20, 'driver_allowance' => 450],
 ];
 $rateTableJson = htmlspecialchars(json_encode($carRateTable, JSON_UNESCAPED_SLASHES), ENT_QUOTES, 'UTF-8');
 
 function booking_value(array $data, string $key): string
 {
-    return htmlspecialchars((string) ($data[$key] ?? ''), ENT_QUOTES, 'UTF-8');
+  return htmlspecialchars((string) ($data[$key] ?? ''), ENT_QUOTES, 'UTF-8');
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    foreach ($bookingData as $key => $defaultValue) {
-        if (isset($_POST[$key])) {
-            $bookingData[$key] = trim((string) $_POST[$key]);
-        }
+  foreach ($bookingData as $key => $defaultValue) {
+    if (isset($_POST[$key])) {
+      $bookingData[$key] = trim((string) $_POST[$key]);
+    }
+  }
+
+  if (!in_array($bookingData['trip_type'], ['one-way', 'two-way'], true)) {
+    $bookingErrors['trip_type'] = 'Select a valid trip type.';
+  }
+
+  if ($bookingData['name'] === '') {
+    $bookingErrors['name'] = 'Enter your name.';
+  }
+
+  if (!preg_match('/^[6-9][0-9]{9}$/', $bookingData['mobile'])) {
+    $bookingErrors['mobile'] = 'Enter a valid 10-digit mobile number starting with 6, 7, 8, or 9.';
+  }
+
+  if ($bookingData['email'] === '') {
+    $bookingErrors['email'] = 'Enter your email address.';
+  } elseif (!filter_var($bookingData['email'], FILTER_VALIDATE_EMAIL)) {
+    $bookingErrors['email'] = 'Enter a valid email address.';
+  }
+
+  if ($bookingData['trip_type'] === 'two-way') {
+    if ($bookingData['trip_days'] === '') {
+      $bookingErrors['trip_days'] = 'Enter the number of days for the round trip.';
+    } elseif (filter_var($bookingData['trip_days'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 30]]) === false) {
+      $bookingErrors['trip_days'] = 'Days must be between 1 and 30.';
+    }
+  }
+
+  if ($bookingData['pickup'] === '') {
+    $bookingErrors['pickup'] = 'Enter the pickup location.';
+  }
+
+  if ($bookingData['drop'] === '') {
+    $bookingErrors['drop'] = 'Enter the drop location.';
+  }
+
+  if ($bookingData['distance_km'] === '') {
+    $bookingErrors['distance_km'] = 'Enter the travel distance in kilometers.';
+  } elseif (!is_numeric($bookingData['distance_km']) || (float) $bookingData['distance_km'] <= 0) {
+    $bookingErrors['distance_km'] = 'Distance must be greater than 0 km.';
+  }
+
+  if ($bookingData['date'] === '') {
+    $bookingErrors['date'] = 'Select a date.';
+  }
+
+  if ($bookingData['time'] === '') {
+    $bookingErrors['time'] = 'Select a time.';
+  }
+
+  if (!$bookingErrors) {
+    $distanceKm = (float) $bookingData['distance_km'];
+    $tripDays = $bookingData['trip_type'] === 'two-way' ? max(1, (int) $bookingData['trip_days']) : 1;
+
+    foreach ($carRateTable as $vehicleName => $rateInfo) {
+      $travelDistance = $bookingData['trip_type'] === 'two-way' ? $distanceKm * 2 : $distanceKm;
+      $distanceFare = $travelDistance * $rateInfo['per_km'];
+      $driverAllowance = $bookingData['trip_type'] === 'two-way' ? $tripDays * $rateInfo['driver_allowance'] : 0;
+      $estimatedFare = $rateInfo['base_fare'] + $distanceFare + $driverAllowance;
+
+      $estimationResults[] = [
+        'vehicle' => $vehicleName,
+        'base_fare' => $rateInfo['base_fare'],
+        'per_km' => $rateInfo['per_km'],
+        'driver_allowance' => $driverAllowance,
+        'travel_distance' => $travelDistance,
+        'estimated_fare' => $estimatedFare,
+      ];
     }
 
-    if (!in_array($bookingData['trip_type'], ['one-way', 'two-way'], true)) {
-        $bookingErrors['trip_type'] = 'Select a valid trip type.';
-    }
-
-    if ($bookingData['name'] === '') {
-        $bookingErrors['name'] = 'Enter your name.';
-    }
-
-    if (!preg_match('/^[6-9][0-9]{9}$/', $bookingData['mobile'])) {
-        $bookingErrors['mobile'] = 'Enter a valid 10-digit mobile number starting with 6, 7, 8, or 9.';
-    }
-
-    if ($bookingData['email'] === '') {
-        $bookingErrors['email'] = 'Enter your email address.';
-    } elseif (!filter_var($bookingData['email'], FILTER_VALIDATE_EMAIL)) {
-        $bookingErrors['email'] = 'Enter a valid email address.';
-    }
-
-    if ($bookingData['trip_type'] === 'two-way') {
-        if ($bookingData['trip_days'] === '') {
-            $bookingErrors['trip_days'] = 'Enter the number of days for the round trip.';
-        } elseif (filter_var($bookingData['trip_days'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 30]]) === false) {
-            $bookingErrors['trip_days'] = 'Days must be between 1 and 30.';
-        }
-    }
-
-    if ($bookingData['pickup'] === '') {
-        $bookingErrors['pickup'] = 'Enter the pickup location.';
-    }
-
-    if ($bookingData['drop'] === '') {
-        $bookingErrors['drop'] = 'Enter the drop location.';
-    }
-
-    if ($bookingData['distance_km'] === '') {
-        $bookingErrors['distance_km'] = 'Enter the travel distance in kilometers.';
-    } elseif (!is_numeric($bookingData['distance_km']) || (float) $bookingData['distance_km'] <= 0) {
-        $bookingErrors['distance_km'] = 'Distance must be greater than 0 km.';
-    }
-
-    if ($bookingData['date'] === '') {
-        $bookingErrors['date'] = 'Select a date.';
-    }
-
-    if ($bookingData['time'] === '') {
-        $bookingErrors['time'] = 'Select a time.';
-    }
-
-    if (!$bookingErrors) {
-        $distanceKm = (float) $bookingData['distance_km'];
-        $tripDays = $bookingData['trip_type'] === 'two-way' ? max(1, (int) $bookingData['trip_days']) : 1;
-
-        foreach ($carRateTable as $vehicleName => $rateInfo) {
-            $travelDistance = $bookingData['trip_type'] === 'two-way' ? $distanceKm * 2 : $distanceKm;
-            $distanceFare = $travelDistance * $rateInfo['per_km'];
-            $driverAllowance = $bookingData['trip_type'] === 'two-way' ? $tripDays * $rateInfo['driver_allowance'] : 0;
-            $estimatedFare = $rateInfo['base_fare'] + $distanceFare + $driverAllowance;
-
-            $estimationResults[] = [
-                'vehicle' => $vehicleName,
-                'base_fare' => $rateInfo['base_fare'],
-                'per_km' => $rateInfo['per_km'],
-                'driver_allowance' => $driverAllowance,
-                'travel_distance' => $travelDistance,
-                'estimated_fare' => $estimatedFare,
-            ];
-        }
-
-        usort($estimationResults, static fn(array $left, array $right): int => $left['estimated_fare'] <=> $right['estimated_fare']);
-        $bookingSuccess = 'Instant estimation generated for all vehicle types.';
-        $bookingStatus = true;
-    }
+    usort($estimationResults, static fn(array $left, array $right): int => $left['estimated_fare'] <=> $right['estimated_fare']);
+    $bookingSuccess = 'Instant estimation generated for all vehicle types.';
+    $bookingStatus = true;
+  }
 }
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -196,11 +197,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               </div>
             </div>
 
-         
+
           </div>
 
           <aside class="booking-card glass" id="booking">
-            <div class="estimation-results<?= $estimationResults ? '' : ' ' ?>" id="estimation-results">
+            <div class="estimation-results<?= $estimationResults ? '' : ' is_hidden' ?>" id="estimation-results">
               <div class="estimation-header">
                 <h3>Instant Estimation</h3>
                 <p id="estimation-summary">Based on <?= htmlspecialchars($bookingData['distance_km'], ENT_QUOTES, 'UTF-8') ?> km<?= $bookingData['trip_type'] === 'two-way' ? ' and ' . htmlspecialchars($bookingData['trip_days'], ENT_QUOTES, 'UTF-8') . ' day(s)' : '' ?>.</p>
@@ -263,100 +264,100 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               </div>
               <p class="form-message form-message-success<?= $bookingSuccess === '' ? ' is-hidden' : '' ?>" id="booking-success-message"><?= htmlspecialchars($bookingSuccess, ENT_QUOTES, 'UTF-8') ?></p>
               <p class="form-message form-message-error<?= isset($bookingErrors['form']) ? '' : ' is-hidden' ?>" id="booking-error-message"><?= isset($bookingErrors['form']) ? htmlspecialchars($bookingErrors['form'], ENT_QUOTES, 'UTF-8') : '' ?></p>
-             
+
               <form class="booking-grid " id="booking-form" method="post" action="#booking" novalidate data-rate-table="<?= $rateTableJson ?>">
-              <div class="trip-type" role="radiogroup" aria-label="Trip type">
-                <label class="trip-option">
-                  <input type="radio" name="trip_type" value="one-way" <?= $bookingData['trip_type'] === 'one-way' ? 'checked' : '' ?>>
-                  <span>One Way Trip</span>
-                </label>
-                <label class="trip-option">
-                  <input type="radio" name="trip_type" value="two-way" <?= $bookingData['trip_type'] === 'two-way' ? 'checked' : '' ?>>
-                  <span>Round Trip</span>
-                </label>
-              </div>
-              <?php if (isset($bookingErrors['trip_type'])): ?>
-                <p class="field-error form-field-error"><?= htmlspecialchars($bookingErrors['trip_type'], ENT_QUOTES, 'UTF-8') ?></p>
-              <?php endif; ?>
-
-              <div class="field-row field-row-compact">
-                <div class="field">
-                  <label for="name">Name</label>
-                  <input id="name" name="name" type="text" placeholder="Enter your name" value="<?= booking_value($bookingData, 'name') ?>" required>
-                  <?php if (isset($bookingErrors['name'])): ?>
-                    <span class="field-error"><?= htmlspecialchars($bookingErrors['name'], ENT_QUOTES, 'UTF-8') ?></span>
-                  <?php endif; ?>
+                <div class="trip-type" role="radiogroup" aria-label="Trip type">
+                  <label class="trip-option">
+                    <input type="radio" name="trip_type" value="one-way" <?= $bookingData['trip_type'] === 'one-way' ? 'checked' : '' ?>>
+                    <span>One Way Trip</span>
+                  </label>
+                  <label class="trip-option">
+                    <input type="radio" name="trip_type" value="two-way" <?= $bookingData['trip_type'] === 'two-way' ? 'checked' : '' ?>>
+                    <span>Round Trip</span>
+                  </label>
                 </div>
-                <div class="field">
-                  <label for="mobile">Mobile Number</label>
-                  <input id="mobile" name="mobile" type="tel" inputmode="numeric" maxlength="10" placeholder="Enter 10-digit mobile number" pattern="[6-9][0-9]{9}" value="<?= booking_value($bookingData, 'mobile') ?>" required>
-                  <?php if (isset($bookingErrors['mobile'])): ?>
-                    <span class="field-error"><?= htmlspecialchars($bookingErrors['mobile'], ENT_QUOTES, 'UTF-8') ?></span>
-                  <?php endif; ?>
-                </div>
-              </div>
-
-              <div class="field">
-                <label for="email">Email</label>
-                <input id="email" name="email" type="email" placeholder="Enter your email address" value="<?= booking_value($bookingData, 'email') ?>" required>
-                <?php if (isset($bookingErrors['email'])): ?>
-                  <span class="field-error"><?= htmlspecialchars($bookingErrors['email'], ENT_QUOTES, 'UTF-8') ?></span>
+                <?php if (isset($bookingErrors['trip_type'])): ?>
+                  <p class="field-error form-field-error"><?= htmlspecialchars($bookingErrors['trip_type'], ENT_QUOTES, 'UTF-8') ?></p>
                 <?php endif; ?>
-              </div>
 
-              <div class="field trip-days-field" id="trip-days-field" <?= $bookingData['trip_type'] !== 'two-way' ? 'hidden' : '' ?>>
-                <label for="trip-days">Days</label>
-                <input id="trip-days" name="trip_days" type="number" min="1" max="30" placeholder="Enter number of days" value="<?= booking_value($bookingData, 'trip_days') ?>">
-                <?php if (isset($bookingErrors['trip_days'])): ?>
-                  <span class="field-error"><?= htmlspecialchars($bookingErrors['trip_days'], ENT_QUOTES, 'UTF-8') ?></span>
+                <div class="field-row field-row-compact">
+                  <div class="field">
+                    <label for="name">Name</label>
+                    <input id="name" name="name" type="text" placeholder="Enter your name" value="<?= booking_value($bookingData, 'name') ?>" required>
+                    <?php if (isset($bookingErrors['name'])): ?>
+                      <span class="field-error"><?= htmlspecialchars($bookingErrors['name'], ENT_QUOTES, 'UTF-8') ?></span>
+                    <?php endif; ?>
+                  </div>
+                  <div class="field">
+                    <label for="mobile">Mobile Number</label>
+                    <input id="mobile" name="mobile" type="tel" inputmode="numeric" maxlength="10" placeholder="Enter 10-digit mobile number" pattern="[6-9][0-9]{9}" value="<?= booking_value($bookingData, 'mobile') ?>" required>
+                    <?php if (isset($bookingErrors['mobile'])): ?>
+                      <span class="field-error"><?= htmlspecialchars($bookingErrors['mobile'], ENT_QUOTES, 'UTF-8') ?></span>
+                    <?php endif; ?>
+                  </div>
+                </div>
+
+                <div class="field">
+                  <label for="email">Email</label>
+                  <input id="email" name="email" type="email" placeholder="Enter your email address" value="<?= booking_value($bookingData, 'email') ?>" required>
+                  <?php if (isset($bookingErrors['email'])): ?>
+                    <span class="field-error"><?= htmlspecialchars($bookingErrors['email'], ENT_QUOTES, 'UTF-8') ?></span>
+                  <?php endif; ?>
+                </div>
+
+                <div class="field trip-days-field" id="trip-days-field" <?= $bookingData['trip_type'] !== 'two-way' ? 'hidden' : '' ?>>
+                  <label for="trip-days">Days</label>
+                  <input id="trip-days" name="trip_days" type="number" min="1" max="30" placeholder="Enter number of days" value="<?= booking_value($bookingData, 'trip_days') ?>">
+                  <?php if (isset($bookingErrors['trip_days'])): ?>
+                    <span class="field-error"><?= htmlspecialchars($bookingErrors['trip_days'], ENT_QUOTES, 'UTF-8') ?></span>
+                  <?php endif; ?>
+                </div>
+
+                <div class="field-row field-row-compact">
+                  <div class="field">
+                    <label for="pickup">Pickup Location</label>
+                    <input id="pickup" name="pickup" type="text" placeholder="Enter pickup location" value="<?= booking_value($bookingData, 'pickup') ?>" autocomplete="off" required>
+                    <input id="pickup-lat" type="hidden">
+                    <input id="pickup-lng" type="hidden">
+                    <?php if (isset($bookingErrors['pickup'])): ?>
+                      <span class="field-error"><?= htmlspecialchars($bookingErrors['pickup'], ENT_QUOTES, 'UTF-8') ?></span>
+                    <?php endif; ?>
+                  </div>
+                  <div class="field">
+                    <label for="drop">Drop Location</label>
+                    <input id="drop" name="drop" type="text" placeholder="Enter drop location" value="<?= booking_value($bookingData, 'drop') ?>" autocomplete="off" required>
+                    <input id="drop-lat" type="hidden">
+                    <input id="drop-lng" type="hidden">
+                    <?php if (isset($bookingErrors['drop'])): ?>
+                      <span class="field-error"><?= htmlspecialchars($bookingErrors['drop'], ENT_QUOTES, 'UTF-8') ?></span>
+                    <?php endif; ?>
+                  </div>
+                </div>
+
+                <input id="distance-km" name="distance_km" type="hidden" value="<?= booking_value($bookingData, 'distance_km') ?>">
+                <?php if (isset($bookingErrors['distance_km'])): ?>
+                  <p class="field-error form-field-error"><?= htmlspecialchars($bookingErrors['distance_km'], ENT_QUOTES, 'UTF-8') ?></p>
                 <?php endif; ?>
-              </div>
 
-              <div class="field-row field-row-compact">
-                <div class="field">
-                  <label for="pickup">Pickup Location</label>
-                  <input id="pickup" name="pickup" type="text" placeholder="Enter pickup location" value="<?= booking_value($bookingData, 'pickup') ?>" autocomplete="off" required>
-                  <input id="pickup-lat" type="hidden">
-                  <input id="pickup-lng" type="hidden">
-                  <?php if (isset($bookingErrors['pickup'])): ?>
-                    <span class="field-error"><?= htmlspecialchars($bookingErrors['pickup'], ENT_QUOTES, 'UTF-8') ?></span>
-                  <?php endif; ?>
+                <div class="field-row field-row-compact">
+                  <div class="field">
+                    <label for="date">Date</label>
+                    <input id="date" name="date" type="date" value="<?= booking_value($bookingData, 'date') ?>" required>
+                    <?php if (isset($bookingErrors['date'])): ?>
+                      <span class="field-error"><?= htmlspecialchars($bookingErrors['date'], ENT_QUOTES, 'UTF-8') ?></span>
+                    <?php endif; ?>
+                  </div>
+                  <div class="field">
+                    <label for="time">Time</label>
+                    <input id="time" name="time" type="time" value="<?= booking_value($bookingData, 'time') ?>" required>
+                    <?php if (isset($bookingErrors['time'])): ?>
+                      <span class="field-error"><?= htmlspecialchars($bookingErrors['time'], ENT_QUOTES, 'UTF-8') ?></span>
+                    <?php endif; ?>
+                  </div>
                 </div>
-                <div class="field">
-                  <label for="drop">Drop Location</label>
-                  <input id="drop" name="drop" type="text" placeholder="Enter drop location" value="<?= booking_value($bookingData, 'drop') ?>" autocomplete="off" required>
-                  <input id="drop-lat" type="hidden">
-                  <input id="drop-lng" type="hidden">
-                  <?php if (isset($bookingErrors['drop'])): ?>
-                    <span class="field-error"><?= htmlspecialchars($bookingErrors['drop'], ENT_QUOTES, 'UTF-8') ?></span>
-                  <?php endif; ?>
-                </div>
-              </div>
 
-              <input id="distance-km" name="distance_km" type="hidden" value="<?= booking_value($bookingData, 'distance_km') ?>">
-              <?php if (isset($bookingErrors['distance_km'])): ?>
-                <p class="field-error form-field-error"><?= htmlspecialchars($bookingErrors['distance_km'], ENT_QUOTES, 'UTF-8') ?></p>
-              <?php endif; ?>
-
-              <div class="field-row field-row-compact">
-                <div class="field">
-                  <label for="date">Date</label>
-                  <input id="date" name="date" type="date" value="<?= booking_value($bookingData, 'date') ?>" required>
-                  <?php if (isset($bookingErrors['date'])): ?>
-                    <span class="field-error"><?= htmlspecialchars($bookingErrors['date'], ENT_QUOTES, 'UTF-8') ?></span>
-                  <?php endif; ?>
-                </div>
-                <div class="field">
-                  <label for="time">Time</label>
-                  <input id="time" name="time" type="time" value="<?= booking_value($bookingData, 'time') ?>" required>
-                  <?php if (isset($bookingErrors['time'])): ?>
-                    <span class="field-error"><?= htmlspecialchars($bookingErrors['time'], ENT_QUOTES, 'UTF-8') ?></span>
-                  <?php endif; ?>
-                </div>
-              </div>
-
-              <button class="button button-primary" id="get-estimation-button" type="submit">Get Estimation <span aria-hidden="true">&rarr;</span></button>
-            </form>
+                <button class="button button-primary" id="get-estimation-button" type="submit">Get Estimation <span aria-hidden="true">&rarr;</span></button>
+              </form>
             </div>
           </aside>
         </div>
@@ -742,7 +743,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       if (pickupInput) {
         pickupAutocomplete = new google.maps.places.Autocomplete(pickupInput, {
           fields: ["formatted_address", "geometry", "name"],
-          componentRestrictions: { country: "in" },
+          componentRestrictions: {
+            country: "in"
+          },
         });
         pickupAutocomplete.addListener("place_changed", () => {
           setPlaceCoordinates("pickup", pickupAutocomplete.getPlace());
@@ -752,7 +755,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       if (dropInput) {
         dropAutocomplete = new google.maps.places.Autocomplete(dropInput, {
           fields: ["formatted_address", "geometry", "name"],
-          componentRestrictions: { country: "in" },
+          componentRestrictions: {
+            country: "in"
+          },
         });
         dropAutocomplete.addListener("place_changed", () => {
           setPlaceCoordinates("drop", dropAutocomplete.getPlace());
@@ -760,250 +765,341 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       }
     }
 
-      const bookingForm = document.getElementById("booking-form");
-      const menuToggle = document.querySelector(".menu-toggle");
-      const primaryNav = document.getElementById("primary-nav");
-      const navShell = document.querySelector(".nav-shell");
+    const bookingForm = document.getElementById("booking-form");
+    const menuToggle = document.querySelector(".menu-toggle");
+    const primaryNav = document.getElementById("primary-nav");
+    const navShell = document.querySelector(".nav-shell");
 
-      if (bookingForm) {
-        const mobileInput = document.getElementById("mobile");
-        const emailInput = document.getElementById("email");
-        const tripTypeInputs = bookingForm.querySelectorAll('input[name="trip_type"]');
-        const tripDaysField = document.getElementById("trip-days-field");
-        const tripDaysInput = document.getElementById("trip-days");
-        const pickupInput = document.getElementById("pickup");
-        const dropInput = document.getElementById("drop");
-        const distanceInput = document.getElementById("distance-km");
-        const pickupLatInput = document.getElementById("pickup-lat");
-        const pickupLngInput = document.getElementById("pickup-lng");
-        const dropLatInput = document.getElementById("drop-lat");
-        const dropLngInput = document.getElementById("drop-lng");
-        const resultsWrapper = document.getElementById("estimation-results");
-        const resultsGrid = document.getElementById("estimation-grid");
-        const resultsSummary = document.getElementById("estimation-summary");
-        const successMessage = document.getElementById("booking-success-message");
-        const errorMessage = document.getElementById("booking-error-message");
-        const formContainer = document.getElementById("booking-form-container");
-        const backToFormButton = document.getElementById("back-to-form-button");
-        const rateTable = JSON.parse(bookingForm.dataset.rateTable || "{}");
+    if (bookingForm) {
+      const mobileInput = document.getElementById("mobile");
+      const emailInput = document.getElementById("email");
+      const tripTypeInputs = bookingForm.querySelectorAll('input[name="trip_type"]');
+      const tripDaysField = document.getElementById("trip-days-field");
+      const tripDaysInput = document.getElementById("trip-days");
+      const pickupInput = document.getElementById("pickup");
+      const dropInput = document.getElementById("drop");
+      const distanceInput = document.getElementById("distance-km");
+      const pickupLatInput = document.getElementById("pickup-lat");
+      const pickupLngInput = document.getElementById("pickup-lng");
+      const dropLatInput = document.getElementById("drop-lat");
+      const dropLngInput = document.getElementById("drop-lng");
+      const resultsWrapper = document.getElementById("estimation-results");
+      const resultsGrid = document.getElementById("estimation-grid");
+      const resultsSummary = document.getElementById("estimation-summary");
+      const successMessage = document.getElementById("booking-success-message");
+      const errorMessage = document.getElementById("booking-error-message");
+      const formContainer = document.getElementById("booking-form-container");
+      const backToFormButton = document.getElementById("back-to-form-button");
+      const rateTable = JSON.parse(bookingForm.dataset.rateTable || "{}");
 
-        const showForm = () => {
-          if (formContainer && resultsWrapper) {
-            formContainer.classList.remove("is-hidden");
-            resultsWrapper.classList.add("is-hidden");
-          }
-        };
+      const showForm = () => {
+        if (formContainer && resultsWrapper) {
+          formContainer.classList.remove("is-hidden");
+          resultsWrapper.classList.add("is-hidden");
+        }
+      };
 
-        const hideForm = () => {
-          if (formContainer && resultsWrapper) {
-            formContainer.classList.add("is-hidden");
-            resultsWrapper.classList.remove("is-hidden");
-          }
-        };
+      const hideForm = () => {
+        if (formContainer && resultsWrapper) {
+          formContainer.classList.add("is-hidden");
+          resultsWrapper.classList.remove("is-hidden");
+        }
+      };
 
-        const renderMessage = (element, message) => {
-          if (!element) {
-            return;
-          }
-
-          element.textContent = message;
-          element.classList.toggle("is-hidden", message === "");
-        };
-
-        const clearPlaceCoordinates = (prefix) => {
-          const latInput = document.getElementById(`${prefix}-lat`);
-          const lngInput = document.getElementById(`${prefix}-lng`);
-
-          if (latInput) latInput.value = "";
-          if (lngInput) lngInput.value = "";
-        };
-
-        const renderEstimationResults = (results, distanceKm, tripType, tripDays) => {
-          if (!resultsWrapper || !resultsGrid || !resultsSummary) {
-            return;
-          }
-
-          resultsGrid.innerHTML = "";
-
-          results.forEach((item) => {
-            const card = document.createElement("article");
-            card.className = "estimate-card";
-            card.innerHTML = `
-              <div class="estimate-top">
-                <h4>${item.vehicle}</h4>
-              </div>
-              <p class="estimate-price">Rs. ${Math.round(item.estimatedFare).toLocaleString("en-IN")}</p>
-              <p class="estimate-meta">Base Rs. ${Math.round(item.baseFare).toLocaleString("en-IN")} + ${item.travelDistance.toFixed(1)} km x Rs. ${Math.round(item.perKm).toLocaleString("en-IN")}</p>
-              ${item.driverAllowance > 0 ? `<p class="estimate-meta">Driver allowance included: Rs. ${Math.round(item.driverAllowance).toLocaleString("en-IN")}</p>` : ""}
-            `;
-            resultsGrid.appendChild(card);
-          });
-
-          const summarySuffix = tripType === "two-way" ? ` and ${tripDays} day(s)` : "";
-          resultsSummary.textContent = `Based on ${distanceKm.toFixed(1)} km${summarySuffix}.`;
-          
-          // Populate user details
-          const estName = document.getElementById("est-name");
-          const estMobile = document.getElementById("est-mobile");
-          const estPickup = document.getElementById("est-pickup");
-          const estDrop = document.getElementById("est-drop");
-          const estDate = document.getElementById("est-date");
-          const estTime = document.getElementById("est-time");
-          const nameInput = document.getElementById("name");
-          const dateInput = document.getElementById("date");
-          const timeInput = document.getElementById("time");
-
-          if (estName && nameInput) estName.textContent = nameInput.value || "-";
-          if (estMobile) estMobile.textContent = mobileInput.value || "-";
-          if (estPickup) estPickup.textContent = pickupInput.value || "-";
-          if (estDrop) estDrop.textContent = dropInput.value || "-";
-          if (estDate && dateInput) estDate.textContent = dateInput.value || "-";
-          if (estTime && timeInput) estTime.textContent = timeInput.value || "-";
-
-          hideForm();
-          renderMessage(successMessage, "");
-          renderMessage(errorMessage, "");
-        };
-
-        const calculateEstimates = (distanceKm) => {
-          const tripType = bookingForm.querySelector('input[name="trip_type"]:checked')?.value || "one-way";
-          const tripDays = tripType === "two-way" ? Math.max(1, Number(tripDaysInput.value || 1)) : 1;
-          const estimationRows = Object.entries(rateTable).map(([vehicle, rateInfo]) => {
-            const travelDistance = tripType === "two-way" ? distanceKm * 2 : distanceKm;
-            const distanceFare = travelDistance * Number(rateInfo.per_km || 0);
-            const driverAllowance = tripType === "two-way" ? tripDays * Number(rateInfo.driver_allowance || 0) : 0;
-            const estimatedFare = Number(rateInfo.base_fare || 0) + distanceFare + driverAllowance;
-
-            return {
-              vehicle,
-              baseFare: Number(rateInfo.base_fare || 0),
-              perKm: Number(rateInfo.per_km || 0),
-              driverAllowance,
-              travelDistance,
-              estimatedFare,
-            };
-          }).sort((left, right) => left.estimatedFare - right.estimatedFare);
-
-          renderEstimationResults(estimationRows, distanceKm, tripType, tripDays);
-        };
-
-        const fetchDistanceAndEstimate = async () => {
-          const params = new URLSearchParams({
-            p_lat: pickupLatInput.value,
-            p_lng: pickupLngInput.value,
-            d_lat: dropLatInput.value,
-            d_lng: dropLngInput.value,
-          });
-
-          const response = await fetch(`distance.php?${params.toString()}`, {
-            headers: { Accept: "application/json" },
-          });
-
-          const payload = await response.json();
-
-          if (!response.ok || !payload.distance_km) {
-            throw new Error(payload.error || "Unable to calculate route distance.");
-          }
-
-          distanceInput.value = payload.distance_km;
-          calculateEstimates(Number(payload.distance_km));
-        };
-
-        const syncTripTypeFields = () => {
-          const selectedTripType = bookingForm.querySelector('input[name="trip_type"]:checked')?.value;
-          const isRoundTrip = selectedTripType === "two-way";
-
-          tripDaysField.hidden = !isRoundTrip;
-          tripDaysInput.required = isRoundTrip;
-
-          if (!isRoundTrip) {
-            tripDaysInput.value = "";
-            tripDaysInput.setCustomValidity("");
-          }
-        };
-
-        syncTripTypeFields();
-
-        mobileInput.addEventListener("input", () => {
-          mobileInput.value = mobileInput.value.replace(/\D/g, "").slice(0, 10);
-          mobileInput.setCustomValidity("");
-        });
-
-        pickupInput.addEventListener("input", () => {
-          clearPlaceCoordinates("pickup");
-        });
-
-        dropInput.addEventListener("input", () => {
-          clearPlaceCoordinates("drop");
-        });
-
-        emailInput.addEventListener("input", () => {
-          emailInput.setCustomValidity("");
-        });
-
-        tripDaysInput.addEventListener("input", () => {
-          tripDaysInput.setCustomValidity("");
-        });
-
-        tripTypeInputs.forEach((input) => {
-          input.addEventListener("change", syncTripTypeFields);
-        });
-
-        if (backToFormButton) {
-          backToFormButton.addEventListener("click", showForm);
+      const renderMessage = (element, message) => {
+        if (!element) {
+          return;
         }
 
-        bookingForm.addEventListener("submit", async (event) => {
-          event.preventDefault();
-          mobileInput.setCustomValidity("");
-          emailInput.setCustomValidity("");
-          tripDaysInput.setCustomValidity("");
-          pickupInput.setCustomValidity("");
-          dropInput.setCustomValidity("");
-          distanceInput.setCustomValidity("");
+        element.textContent = message;
+        element.classList.toggle("is-hidden", message === "");
+      };
 
-          if (!/^[6-9][0-9]{9}$/.test(mobileInput.value)) {
-            mobileInput.setCustomValidity("Enter a valid 10-digit mobile number starting with 6, 7, 8, or 9.");
-          }
+      const clearPlaceCoordinates = (prefix) => {
+        const latInput = document.getElementById(`${prefix}-lat`);
+        const lngInput = document.getElementById(`${prefix}-lng`);
 
-          if (emailInput.validity.valueMissing) {
-            emailInput.setCustomValidity("Enter your email address.");
-          } else if (emailInput.validity.typeMismatch) {
-            emailInput.setCustomValidity("Enter a valid email address.");
-          }
+        if (latInput) latInput.value = "";
+        if (lngInput) lngInput.value = "";
+      };
 
-          if (!tripDaysField.hidden) {
-            if (tripDaysInput.validity.valueMissing) {
-              tripDaysInput.setCustomValidity("Enter the number of days for the round trip.");
-            } else if (Number(tripDaysInput.value) < 1) {
-              tripDaysInput.setCustomValidity("Days must be at least 1.");
+      // const renderEstimationResults = (results, distanceKm, tripType, tripDays) => {
+      //   if (!resultsWrapper || !resultsGrid || !resultsSummary) {
+      //     return;
+      //   }
+
+      //   resultsGrid.innerHTML = "";
+
+      //   results.forEach((item) => {
+      //     const card = document.createElement("article");
+      //     card.className = "estimate-card";
+      //     card.innerHTML = `
+      //       <div class="estimate-top">
+      //         <h4>${item.vehicle}</h4>
+      //       </div>
+      //       <p class="estimate-price">Rs. ${Math.round(item.estimatedFare).toLocaleString("en-IN")}</p>
+      //       <p class="estimate-meta">Base Rs. ${Math.round(item.baseFare).toLocaleString("en-IN")} + ${item.travelDistance.toFixed(1)} km x Rs. ${Math.round(item.perKm).toLocaleString("en-IN")}</p>
+      //       ${item.driverAllowance > 0 ? `<p class="estimate-meta">Driver allowance included: Rs. ${Math.round(item.driverAllowance).toLocaleString("en-IN")}</p>` : ""}
+      //     `;
+      //     resultsGrid.appendChild(card);
+      //   });
+
+      //   const summarySuffix = tripType === "two-way" ? ` and ${tripDays} day(s)` : "";
+      //   resultsSummary.textContent = `Based on ${distanceKm.toFixed(1)} km${summarySuffix}.`;
+
+      //   // Populate user details
+      //   const estName = document.getElementById("est-name");
+      //   const estMobile = document.getElementById("est-mobile");
+      //   const estPickup = document.getElementById("est-pickup");
+      //   const estDrop = document.getElementById("est-drop");
+      //   const estDate = document.getElementById("est-date");
+      //   const estTime = document.getElementById("est-time");
+      //   const nameInput = document.getElementById("name");
+      //   const dateInput = document.getElementById("date");
+      //   const timeInput = document.getElementById("time");
+
+      //   if (estName && nameInput) estName.textContent = nameInput.value || "-";
+      //   if (estMobile) estMobile.textContent = mobileInput.value || "-";
+      //   if (estPickup) estPickup.textContent = pickupInput.value || "-";
+      //   if (estDrop) estDrop.textContent = dropInput.value || "-";
+      //   if (estDate && dateInput) estDate.textContent = dateInput.value || "-";
+      //   if (estTime && timeInput) estTime.textContent = timeInput.value || "-";
+
+      //   hideForm();
+      //   renderMessage(successMessage, "");
+      //   renderMessage(errorMessage, "");
+      // };
+      const renderEstimationResults = (results, distanceKm, tripType, tripDays) => {
+        if (!resultsWrapper || !resultsGrid || !resultsSummary) return;
+
+        resultsGrid.innerHTML = "";
+
+        // Collect form values once
+        const nameVal = document.getElementById("name")?.value || "-";
+        const mobileVal = mobileInput.value || "-";
+        const pickupVal = pickupInput.value || "-";
+        const dropVal = dropInput.value || "-";
+        const dateVal = document.getElementById("date")?.value || "-";
+        const timeVal = document.getElementById("time")?.value || "-";
+
+        results.forEach((item) => {
+          const card = document.createElement("article");
+          card.className = "estimate-card";
+          card.innerHTML = `
+      <div class="estimate-top"><h4>${item.vehicle}</h4></div>
+      <p class="estimate-price">Rs. ${Math.round(item.estimatedFare).toLocaleString("en-IN")}</p>
+      <p class="estimate-meta">Base Rs. ${Math.round(item.baseFare).toLocaleString("en-IN")} + ${item.travelDistance.toFixed(1)} km × Rs. ${Math.round(item.perKm).toLocaleString("en-IN")}</p>
+      ${item.driverAllowance > 0 ? `<p class="estimate-meta">Driver allowance: Rs. ${Math.round(item.driverAllowance).toLocaleString("en-IN")}</p>` : ""}
+      <button class="estimate-select-btn" type="button">Select This Car →</button>
+    `;
+
+          // Select button click → populate & open modal
+          card.querySelector(".estimate-select-btn").addEventListener("click", () => {
+            const modal = document.getElementById("car-modal-overlay") || document.getElementById("car-detail-modal");
+
+            // Vehicle header
+            document.getElementById("modal-vehicle-icon").textContent = item.vehicle.charAt(0);
+            document.getElementById("modal-vehicle-name").textContent = item.vehicle;
+
+            // Passenger details
+            document.getElementById("modal-name").textContent = nameVal;
+            document.getElementById("modal-mobile").textContent = mobileVal;
+            document.getElementById("modal-date").textContent = dateVal;
+            document.getElementById("modal-time").textContent = timeVal;
+
+            // Trip details
+            document.getElementById("modal-pickup").textContent = pickupVal;
+            document.getElementById("modal-drop").textContent = dropVal;
+            document.getElementById("modal-trip-type").textContent = tripType === "two-way" ? `Round Trip (${tripDays} day${tripDays > 1 ? "s" : ""})` : "One Way";
+            document.getElementById("modal-distance").textContent = `${item.travelDistance.toFixed(1)} km`;
+
+            // Fare breakdown
+            const distCharge = item.travelDistance * item.perKm;
+            document.getElementById("modal-base-fare").textContent = `Rs. ${Math.round(item.baseFare).toLocaleString("en-IN")}`;
+            document.getElementById("modal-dist-label").textContent = item.travelDistance.toFixed(1);
+            document.getElementById("modal-per-km").textContent = Math.round(item.perKm).toLocaleString("en-IN");
+            document.getElementById("modal-dist-charge").textContent = `Rs. ${Math.round(distCharge).toLocaleString("en-IN")}`;
+            document.getElementById("modal-total-fare").textContent = `Rs. ${Math.round(item.estimatedFare).toLocaleString("en-IN")}`;
+
+            // Driver allowance row
+            const allowanceRow = document.getElementById("modal-allowance-row");
+            if (item.driverAllowance > 0) {
+              document.getElementById("modal-driver-allowance").textContent = `Rs. ${Math.round(item.driverAllowance).toLocaleString("en-IN")}`;
+              allowanceRow.hidden = false;
+            } else {
+              allowanceRow.hidden = true;
             }
-          }
 
-          if (!pickupLatInput.value || !pickupLngInput.value) {
-            pickupInput.setCustomValidity("Please select a valid pickup location from Google suggestions.");
-          }
+            document.getElementById("car-detail-modal").hidden = false;
+            document.body.style.overflow = "hidden";
+          });
 
-          if (!dropLatInput.value || !dropLngInput.value) {
-            dropInput.setCustomValidity("Please select a valid drop location from Google suggestions.");
-          }
-
-          if (!bookingForm.checkValidity()) {
-            bookingForm.reportValidity();
-            renderMessage(errorMessage, "Please correct the highlighted form fields.");
-            renderMessage(successMessage, "");
-            return;
-          }
-
-          try {
-            renderMessage(errorMessage, "");
-            renderMessage(successMessage, "");
-            await fetchDistanceAndEstimate();
-          } catch (error) {
-            renderMessage(errorMessage, error.message || "Unable to generate estimation right now.");
-          }
+          resultsGrid.appendChild(card);
         });
+
+        const summarySuffix = tripType === "two-way" ? ` and ${tripDays} day(s)` : "";
+        resultsSummary.textContent = `Based on ${distanceKm.toFixed(1)} km${summarySuffix}.`;
+
+        // Populate user details panel (existing)
+        const estName = document.getElementById("est-name");
+        const estMobile = document.getElementById("est-mobile");
+        const estPickup = document.getElementById("est-pickup");
+        const estDrop = document.getElementById("est-drop");
+        const estDate = document.getElementById("est-date");
+        const estTime = document.getElementById("est-time");
+        if (estName) estName.textContent = nameVal;
+        if (estMobile) estMobile.textContent = mobileVal;
+        if (estPickup) estPickup.textContent = pickupVal;
+        if (estDrop) estDrop.textContent = dropVal;
+        if (estDate) estDate.textContent = dateVal;
+        if (estTime) estTime.textContent = timeVal;
+
+        hideForm();
+        renderMessage(successMessage, "");
+        renderMessage(errorMessage, "");
+      };
+
+      const calculateEstimates = (distanceKm) => {
+        const tripType = bookingForm.querySelector('input[name="trip_type"]:checked')?.value || "one-way";
+        const tripDays = tripType === "two-way" ? Math.max(1, Number(tripDaysInput.value || 1)) : 1;
+        const estimationRows = Object.entries(rateTable).map(([vehicle, rateInfo]) => {
+          const travelDistance = tripType === "two-way" ? distanceKm * 2 : distanceKm;
+          const distanceFare = travelDistance * Number(rateInfo.per_km || 0);
+          const driverAllowance = tripType === "two-way" ? tripDays * Number(rateInfo.driver_allowance || 0) : 0;
+          const estimatedFare = Number(rateInfo.base_fare || 0) + distanceFare + driverAllowance;
+
+          return {
+            vehicle,
+            baseFare: Number(rateInfo.base_fare || 0),
+            perKm: Number(rateInfo.per_km || 0),
+            driverAllowance,
+            travelDistance,
+            estimatedFare,
+          };
+        }).sort((left, right) => left.estimatedFare - right.estimatedFare);
+
+        renderEstimationResults(estimationRows, distanceKm, tripType, tripDays);
+      };
+
+      const fetchDistanceAndEstimate = async () => {
+        const params = new URLSearchParams({
+          p_lat: pickupLatInput.value,
+          p_lng: pickupLngInput.value,
+          d_lat: dropLatInput.value,
+          d_lng: dropLngInput.value,
+        });
+
+        const response = await fetch(`distance.php?${params.toString()}`, {
+          headers: {
+            Accept: "application/json"
+          },
+        });
+
+        const payload = await response.json();
+
+        if (!response.ok || !payload.distance_km) {
+          throw new Error(payload.error || "Unable to calculate route distance.");
+        }
+
+        distanceInput.value = payload.distance_km;
+        calculateEstimates(Number(payload.distance_km));
+      };
+
+      const syncTripTypeFields = () => {
+        const selectedTripType = bookingForm.querySelector('input[name="trip_type"]:checked')?.value;
+        const isRoundTrip = selectedTripType === "two-way";
+
+        tripDaysField.hidden = !isRoundTrip;
+        tripDaysInput.required = isRoundTrip;
+
+        if (!isRoundTrip) {
+          tripDaysInput.value = "";
+          tripDaysInput.setCustomValidity("");
+        }
+      };
+
+      syncTripTypeFields();
+
+      mobileInput.addEventListener("input", () => {
+        mobileInput.value = mobileInput.value.replace(/\D/g, "").slice(0, 10);
+        mobileInput.setCustomValidity("");
+      });
+
+      pickupInput.addEventListener("input", () => {
+        clearPlaceCoordinates("pickup");
+      });
+
+      dropInput.addEventListener("input", () => {
+        clearPlaceCoordinates("drop");
+      });
+
+      emailInput.addEventListener("input", () => {
+        emailInput.setCustomValidity("");
+      });
+
+      tripDaysInput.addEventListener("input", () => {
+        tripDaysInput.setCustomValidity("");
+      });
+
+      tripTypeInputs.forEach((input) => {
+        input.addEventListener("change", syncTripTypeFields);
+      });
+
+      if (backToFormButton) {
+        backToFormButton.addEventListener("click", showForm);
       }
+
+      bookingForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        mobileInput.setCustomValidity("");
+        emailInput.setCustomValidity("");
+        tripDaysInput.setCustomValidity("");
+        pickupInput.setCustomValidity("");
+        dropInput.setCustomValidity("");
+        distanceInput.setCustomValidity("");
+
+        if (!/^[6-9][0-9]{9}$/.test(mobileInput.value)) {
+          mobileInput.setCustomValidity("Enter a valid 10-digit mobile number starting with 6, 7, 8, or 9.");
+        }
+
+        if (emailInput.validity.valueMissing) {
+          emailInput.setCustomValidity("Enter your email address.");
+        } else if (emailInput.validity.typeMismatch) {
+          emailInput.setCustomValidity("Enter a valid email address.");
+        }
+
+        if (!tripDaysField.hidden) {
+          if (tripDaysInput.validity.valueMissing) {
+            tripDaysInput.setCustomValidity("Enter the number of days for the round trip.");
+          } else if (Number(tripDaysInput.value) < 1) {
+            tripDaysInput.setCustomValidity("Days must be at least 1.");
+          }
+        }
+
+        if (!pickupLatInput.value || !pickupLngInput.value) {
+          pickupInput.setCustomValidity("Please select a valid pickup location from Google suggestions.");
+        }
+
+        if (!dropLatInput.value || !dropLngInput.value) {
+          dropInput.setCustomValidity("Please select a valid drop location from Google suggestions.");
+        }
+
+        if (!bookingForm.checkValidity()) {
+          bookingForm.reportValidity();
+          renderMessage(errorMessage, "Please correct the highlighted form fields.");
+          renderMessage(successMessage, "");
+          return;
+        }
+
+        try {
+          renderMessage(errorMessage, "");
+          renderMessage(successMessage, "");
+          await fetchDistanceAndEstimate();
+        } catch (error) {
+          renderMessage(errorMessage, error.message || "Unable to generate estimation right now.");
+        }
+      });
+    }
 
     if (menuToggle && primaryNav && navShell) {
       const navLinks = primaryNav.querySelectorAll("a");
@@ -1025,5 +1121,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <?php if ($googleMapsApiKey !== ''): ?>
     <script async src="https://maps.googleapis.com/maps/api/js?key=<?= htmlspecialchars($googleMapsApiKey, ENT_QUOTES, 'UTF-8') ?>&libraries=places&callback=initGooglePlaces"></script>
   <?php endif; ?>
+  <!-- Car Selection Detail Modal -->
+  <div id="car-detail-modal" class="car-modal-overlay" aria-modal="true" role="dialog" aria-label="Booking Summary" hidden>
+    <div class="car-modal-card glass">
+      <button class="car-modal-close" id="car-modal-close" aria-label="Close">&times;</button>
+      <div class="car-modal-header">
+        <div class="square-icon" id="modal-vehicle-icon">S</div>
+        <div>
+          <h3 id="modal-vehicle-name">Sedan</h3>
+          <span class="modal-badge">Booking Summary</span>
+        </div>
+      </div>
+
+      <div class="car-modal-section">
+        <h4>Passenger Details</h4>
+        <div class="modal-grid">
+          <div class="modal-item"><span class="modal-label">Name</span><span class="modal-value" id="modal-name">-</span></div>
+          <div class="modal-item"><span class="modal-label">Mobile</span><span class="modal-value" id="modal-mobile">-</span></div>
+          <div class="modal-item"><span class="modal-label">Date</span><span class="modal-value" id="modal-date">-</span></div>
+          <div class="modal-item"><span class="modal-label">Time</span><span class="modal-value" id="modal-time">-</span></div>
+        </div>
+      </div>
+
+      <div class="car-modal-section">
+        <h4>Trip Details</h4>
+        <div class="modal-grid">
+          <div class="modal-item modal-item-full"><span class="modal-label">Pickup Location</span><span class="modal-value" id="modal-pickup">-</span></div>
+          <div class="modal-item modal-item-full"><span class="modal-label">Drop Location</span><span class="modal-value" id="modal-drop">-</span></div>
+          <div class="modal-item"><span class="modal-label">Trip Type</span><span class="modal-value" id="modal-trip-type">-</span></div>
+          <div class="modal-item"><span class="modal-label">Distance</span><span class="modal-value" id="modal-distance">-</span></div>
+        </div>
+      </div>
+
+      <div class="car-modal-section">
+        <h4>Fare Breakdown</h4>
+        <div class="modal-fare-rows">
+          <div class="modal-fare-row"><span>Base Fare</span><span id="modal-base-fare">-</span></div>
+          <div class="modal-fare-row"><span>Distance Charge (<span id="modal-dist-label">-</span> km × Rs.<span id="modal-per-km">-</span>)</span><span id="modal-dist-charge">-</span></div>
+          <div class="modal-fare-row" id="modal-allowance-row"><span>Driver Allowance</span><span id="modal-driver-allowance">-</span></div>
+          <div class="modal-fare-row modal-fare-total"><span>Total Estimated Fare</span><span id="modal-total-fare">-</span></div>
+        </div>
+      </div>
+
+      <a class="button button-primary modal-confirm-btn" href="tel:+911234567890">
+        Confirm &amp; Call to Book &rarr;
+      </a>
+    </div>
+  </div>
 </body>
+
 </html>

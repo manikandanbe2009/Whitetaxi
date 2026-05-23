@@ -1,0 +1,580 @@
+<!--
+  ═══════════════════════════════════════════════════════════════════
+  STEP 1 — Paste this modal HTML just before the closing </body> tag
+           (right before your existing <script> block)
+  ═══════════════════════════════════════════════════════════════════
+-->
+
+<!-- Car Selection Detail Modal -->
+<div id="car-detail-modal" class="car-modal-overlay" aria-modal="true" role="dialog" aria-label="Booking Summary" hidden>
+  <div class="car-modal-card glass">
+    <button class="car-modal-close" id="car-modal-close" aria-label="Close">&times;</button>
+
+    <div class="car-modal-header">
+      <div class="square-icon" id="modal-vehicle-icon">S</div>
+      <div>
+        <h3 id="modal-vehicle-name">Sedan</h3>
+        <span class="modal-badge">Booking Summary</span>
+      </div>
+    </div>
+
+    <div class="car-modal-section">
+      <h4>Passenger Details</h4>
+      <div class="modal-grid">
+        <div class="modal-item"><span class="modal-label">Name</span><span class="modal-value" id="modal-name">-</span></div>
+        <div class="modal-item"><span class="modal-label">Mobile</span><span class="modal-value" id="modal-mobile">-</span></div>
+        <div class="modal-item"><span class="modal-label">Date</span><span class="modal-value" id="modal-date">-</span></div>
+        <div class="modal-item"><span class="modal-label">Time</span><span class="modal-value" id="modal-time">-</span></div>
+        <div class="modal-item modal-item-full"><span class="modal-label">Email</span><span class="modal-value" id="modal-email">-</span></div>
+      </div>
+    </div>
+
+    <div class="car-modal-section">
+      <h4>Trip Details</h4>
+      <div class="modal-grid">
+        <div class="modal-item modal-item-full"><span class="modal-label">Pickup Location</span><span class="modal-value" id="modal-pickup">-</span></div>
+        <div class="modal-item modal-item-full"><span class="modal-label">Drop Location</span><span class="modal-value" id="modal-drop">-</span></div>
+        <div class="modal-item"><span class="modal-label">Trip Type</span><span class="modal-value" id="modal-trip-type">-</span></div>
+        <div class="modal-item"><span class="modal-label">Distance</span><span class="modal-value" id="modal-distance">-</span></div>
+      </div>
+    </div>
+
+    <div class="car-modal-section">
+      <h4>Fare Breakdown</h4>
+      <div class="modal-fare-rows">
+        <div class="modal-fare-row"><span>Base Fare</span><span id="modal-base-fare">-</span></div>
+        <div class="modal-fare-row">
+          <span>Distance Charge (<span id="modal-dist-label">-</span> km &times; Rs.<span id="modal-per-km">-</span>)</span>
+          <span id="modal-dist-charge">-</span>
+        </div>
+        <div class="modal-fare-row" id="modal-allowance-row" hidden>
+          <span>Driver Allowance</span>
+          <span id="modal-driver-allowance">-</span>
+        </div>
+        <div class="modal-fare-row modal-fare-total">
+          <span>Total Estimated Fare</span>
+          <span id="modal-total-fare">-</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status messages -->
+    <p class="modal-status modal-status-success" id="modal-success-msg" hidden>
+      ✅ Confirmation sent to your email and WhatsApp!
+    </p>
+    <p class="modal-status modal-status-error" id="modal-error-msg" hidden></p>
+
+    <!-- Action buttons -->
+    <div class="modal-actions">
+      <button class="button button-primary modal-confirm-btn" id="modal-confirm-btn" type="button">
+        <span id="modal-confirm-label">Confirm &amp; Send Booking &rarr;</span>
+        <span id="modal-confirm-spinner" hidden>Sending…</span>
+      </button>
+      <button class="button button-secondary modal-whatsapp-btn" id="modal-whatsapp-btn" type="button" hidden>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:6px;"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.126.555 4.122 1.527 5.854L.057 23.5l5.797-1.52A11.95 11.95 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.793 9.793 0 01-5.017-1.38l-.36-.214-3.44.902.918-3.354-.235-.375A9.795 9.795 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>
+        Open WhatsApp
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!--
+  ═══════════════════════════════════════════════════════════════════
+  STEP 2 — Add this CSS inside your <style> block or css/style.css
+  ═══════════════════════════════════════════════════════════════════
+-->
+<style>
+/* ── Modal overlay ─────────────────────────────────────── */
+.car-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.car-modal-overlay[hidden] { display: none !important; }
+
+.car-modal-card {
+  background: rgba(13,18,38,0.98);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 1.25rem;
+  padding: 2rem;
+  max-width: 560px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  color: #fff;
+  animation: modalSlideIn 0.28s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes modalSlideIn {
+  from { opacity:0; transform: translateY(28px) scale(0.96); }
+  to   { opacity:1; transform: translateY(0) scale(1); }
+}
+
+/* ── Close button ──────────────────────────────────────── */
+.car-modal-close {
+  position: absolute;
+  top: 1rem; right: 1rem;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.7);
+  font-size: 1.3rem;
+  width: 2rem; height: 2rem;
+  border-radius: 50%;
+  cursor: pointer;
+  line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.car-modal-close:hover {
+  background: rgba(255,255,255,0.18);
+  color: #fff;
+}
+
+/* ── Header ────────────────────────────────────────────── */
+.car-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding-right: 2rem;
+}
+.car-modal-header h3 {
+  margin: 0 0 4px;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+.modal-badge {
+  font-size: 0.68rem;
+  background: rgba(255,193,7,0.15);
+  color: #ffc107;
+  padding: 0.15rem 0.65rem;
+  border-radius: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ── Sections ──────────────────────────────────────────── */
+.car-modal-section {
+  margin-bottom: 1.25rem;
+}
+.car-modal-section h4 {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(255,255,255,0.35);
+  margin: 0 0 0.65rem;
+  font-weight: 700;
+}
+
+/* ── Info grid ─────────────────────────────────────────── */
+.modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+.modal-item {
+  background: rgba(255,255,255,0.045);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 0.65rem;
+  padding: 0.65rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.modal-item-full { grid-column: 1 / -1; }
+.modal-label {
+  font-size: 0.65rem;
+  color: rgba(255,255,255,0.38);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+.modal-value {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #fff;
+  word-break: break-word;
+}
+
+/* ── Fare breakdown ────────────────────────────────────── */
+.modal-fare-rows { display: flex; flex-direction: column; gap: 0.4rem; }
+.modal-fare-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.87rem;
+  padding: 0.55rem 0.9rem;
+  background: rgba(255,255,255,0.035);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 0.55rem;
+  color: rgba(255,255,255,0.75);
+  gap: 1rem;
+}
+.modal-fare-row span:last-child { font-weight: 700; color: #fff; white-space: nowrap; }
+.modal-fare-total {
+  background: rgba(255,193,7,0.1) !important;
+  border-color: rgba(255,193,7,0.28) !important;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #ffc107 !important;
+}
+.modal-fare-total span:last-child { color: #ffc107 !important; font-size: 1.05rem; }
+
+/* ── Status messages ───────────────────────────────────── */
+.modal-status {
+  margin: 1rem 0 0;
+  padding: 0.75rem 1rem;
+  border-radius: 0.65rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+.modal-status[hidden] { display: none !important; }
+.modal-status-success {
+  background: rgba(34,197,94,0.12);
+  border: 1px solid rgba(34,197,94,0.3);
+  color: #4ade80;
+}
+.modal-status-error {
+  background: rgba(239,68,68,0.12);
+  border: 1px solid rgba(239,68,68,0.3);
+  color: #f87171;
+}
+
+/* ── Action buttons ────────────────────────────────────── */
+.modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 1.25rem;
+}
+.modal-confirm-btn {
+  width: 100%;
+  text-align: center;
+  justify-content: center;
+}
+.modal-whatsapp-btn {
+  width: 100%;
+  text-align: center;
+  justify-content: center;
+  background: rgba(37,211,102,0.12) !important;
+  border-color: rgba(37,211,102,0.35) !important;
+  color: #25d366 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal-whatsapp-btn:hover {
+  background: rgba(37,211,102,0.22) !important;
+  color: #fff !important;
+}
+.modal-whatsapp-btn[hidden] { display: none !important; }
+
+/* ── Estimate card select button ───────────────────────── */
+.estimate-select-btn {
+  display: block;
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.55rem 1rem;
+  background: rgba(255,193,7,0.1);
+  border: 1px solid rgba(255,193,7,0.35);
+  color: #ffc107;
+  border-radius: 0.55rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.estimate-select-btn:hover {
+  background: rgba(255,193,7,0.22);
+  color: #fff;
+  border-color: rgba(255,193,7,0.6);
+}
+</style>
+
+
+<!--
+  ═══════════════════════════════════════════════════════════════════
+  STEP 3 — Replace your existing renderEstimationResults function
+           AND add the modal logic block shown below, inside <script>
+  ═══════════════════════════════════════════════════════════════════
+-->
+<script>
+/* ── CONFIG: set your WhatsApp business number (digits only, with country code) */
+const WHATSAPP_NUMBER = '919876543210'; // ← replace with your actual number
+
+/* ── Helper: format number as INR string ─────────────────────────────────── */
+const inr = (n) => 'Rs. ' + Math.round(Number(n)).toLocaleString('en-IN');
+
+/* ── Modal references ────────────────────────────────────────────────────── */
+const carModal        = document.getElementById('car-detail-modal');
+const carModalClose   = document.getElementById('car-modal-close');
+const confirmBtn      = document.getElementById('modal-confirm-btn');
+const confirmLabel    = document.getElementById('modal-confirm-label');
+const confirmSpinner  = document.getElementById('modal-confirm-spinner');
+const whatsappBtn     = document.getElementById('modal-whatsapp-btn');
+const modalSuccessMsg = document.getElementById('modal-success-msg');
+const modalErrorMsg   = document.getElementById('modal-error-msg');
+
+/* Stored booking payload for the confirm action */
+let currentBookingPayload = null;
+
+/* ── Close modal ─────────────────────────────────────────────────────────── */
+const closeModal = () => {
+  const carModal = document.getElementById('car-detail-modal');
+  if (!carModal) return;
+  carModal.hidden = true;
+  document.body.style.overflow = '';
+  document.getElementById('modal-success-msg').hidden  = true;
+  document.getElementById('modal-error-msg').hidden    = true;
+  document.getElementById('modal-whatsapp-btn').hidden = true;
+  document.getElementById('modal-confirm-btn').hidden  = false;
+  document.getElementById('modal-confirm-label').hidden   = false;
+  document.getElementById('modal-confirm-spinner').hidden = true;
+  document.getElementById('modal-confirm-btn').disabled   = false;
+  currentBookingPayload = null;
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  const carModalClose = document.getElementById('car-modal-close');
+  const carModal      = document.getElementById('car-detail-modal');
+
+  if (carModalClose) carModalClose.addEventListener('click', closeModal);
+
+  if (carModal) {
+    carModal.addEventListener('click', (e) => {
+      if (e.target === carModal) closeModal();
+    });
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && carModal && !carModal.hidden) closeModal();
+  });
+});
+/* ── Open WhatsApp ───────────────────────────────────────────────────────── */
+const openWhatsApp = (p) => {
+  const allowanceLine = Number(p.driver_allowance) > 0
+    ? `\n🧑‍✈️ Driver Allowance : ${inr(p.driver_allowance)}`
+    : '';
+
+  const tripLabel = p.trip_type === 'two-way'
+    ? `Round Trip (${p.trip_days} day${p.trip_days !== '1' ? 's' : ''})`
+    : 'One Way';
+
+  const msg = [
+    `🚖 *New Booking – White Call Taxi*`,
+    ``,
+    `*Vehicle :* ${p.vehicle}`,
+    `*Trip    :* ${tripLabel}`,
+    ``,
+    `👤 *Passenger*`,
+    `Name   : ${p.name}`,
+    `Mobile : ${p.mobile}`,
+    `Email  : ${p.email}`,
+    ``,
+    `📍 *Journey*`,
+    `Pickup   : ${p.pickup}`,
+    `Drop     : ${p.drop}`,
+    `Distance : ${p.distance_km} km`,
+    `Date     : ${p.date}  |  Time : ${p.time}`,
+    ``,
+    `💰 *Fare Breakdown*`,
+    `Base Fare        : ${inr(p.base_fare)}`,
+    `Distance Charge  : ${inr(p.dist_charge)}  (${p.distance_km} km × Rs.${p.per_km}/km)`,
+    `${Number(p.driver_allowance) > 0 ? `Driver Allowance : ${inr(p.driver_allowance)}` : ''}`,
+    `*TOTAL           : ${inr(p.total_fare)}*`,
+  ].filter(l => l !== undefined).join('\n');
+
+  const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
+  window.open(url, '_blank', 'noopener,noreferrer');
+};
+
+/* ── Confirm button: send email then open WhatsApp ───────────────────────── */
+if (confirmBtn) {
+  confirmBtn.addEventListener('click', async () => {
+    if (!currentBookingPayload) return;
+
+    // Loading state
+    confirmLabel.hidden = true;
+    confirmSpinner.hidden = false;
+    confirmBtn.disabled = true;
+    modalSuccessMsg.hidden = true;
+    modalErrorMsg.hidden = true;
+
+    try {
+      const res = await fetch('send_booking.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(currentBookingPayload),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'Failed to send confirmation email.');
+      }
+
+      // Success — show success message, reveal WhatsApp button
+      modalSuccessMsg.hidden = false;
+      whatsappBtn.hidden = false;
+      confirmBtn.hidden = true;
+
+      // Auto-open WhatsApp after a short delay
+      setTimeout(() => openWhatsApp(currentBookingPayload), 800);
+
+    } catch (err) {
+      modalErrorMsg.textContent = '⚠️ ' + (err.message || 'Could not send email. Please try again.');
+      modalErrorMsg.hidden = false;
+      // Restore button
+      confirmLabel.hidden = false;
+      confirmSpinner.hidden = true;
+      confirmBtn.disabled = false;
+    }
+  });
+}
+
+/* ── WhatsApp button (manual re-open) ───────────────────────────────────── */
+if (whatsappBtn) {
+  whatsappBtn.addEventListener('click', () => {
+    if (currentBookingPayload) openWhatsApp(currentBookingPayload);
+  });
+}
+
+/* ── UPDATED renderEstimationResults ─────────────────────────────────────── */
+const renderEstimationResults = (results, distanceKm, tripType, tripDays) => {
+  if (!resultsWrapper || !resultsGrid || !resultsSummary) return;
+
+  resultsGrid.innerHTML = '';
+
+  // Collect form values once
+  const nameVal   = document.getElementById('name')?.value   || '-';
+  const emailVal  = document.getElementById('email')?.value  || '-';
+  const mobileVal = mobileInput.value  || '-';
+  const pickupVal = pickupInput.value  || '-';
+  const dropVal   = dropInput.value    || '-';
+  const dateVal   = document.getElementById('date')?.value   || '-';
+  const timeVal   = document.getElementById('time')?.value   || '-';
+
+  results.forEach((item) => {
+    const distCharge = item.travelDistance * item.perKm;
+
+    const card = document.createElement('article');
+    card.className = 'estimate-card';
+    card.innerHTML = `
+      <div class="estimate-top"><h4>${item.vehicle}</h4></div>
+      <p class="estimate-price">${inr(item.estimatedFare)}</p>
+      <p class="estimate-meta">Base ${inr(item.baseFare)} + ${item.travelDistance.toFixed(1)} km &times; Rs.${Math.round(item.perKm)}</p>
+      ${item.driverAllowance > 0 ? `<p class="estimate-meta">Driver allowance: ${inr(item.driverAllowance)}</p>` : ''}
+      <button class="estimate-select-btn" type="button">Select This Car &rarr;</button>
+    `;
+
+    card.querySelector('.estimate-select-btn').addEventListener('click', () => {
+      // Build payload
+      currentBookingPayload = {
+        name:             nameVal,
+        email:            emailVal,
+        mobile:           mobileVal,
+        pickup:           pickupVal,
+        drop:             dropVal,
+        date:             dateVal,
+        time:             timeVal,
+        vehicle:          item.vehicle,
+        trip_type:        tripType,
+        trip_days:        String(tripDays),
+        distance_km:      item.travelDistance.toFixed(1),
+        base_fare:        String(Math.round(item.baseFare)),
+        per_km:           String(Math.round(item.perKm)),
+        dist_charge:      String(Math.round(distCharge)),
+        driver_allowance: String(Math.round(item.driverAllowance)),
+        total_fare:       String(Math.round(item.estimatedFare)),
+      };
+
+      // Populate modal
+      document.getElementById('modal-vehicle-icon').textContent = item.vehicle.charAt(0);
+      document.getElementById('modal-vehicle-name').textContent = item.vehicle;
+      document.getElementById('modal-name').textContent    = nameVal;
+      document.getElementById('modal-email').textContent   = emailVal;
+      document.getElementById('modal-mobile').textContent  = mobileVal;
+      document.getElementById('modal-date').textContent    = dateVal;
+      document.getElementById('modal-time').textContent    = timeVal;
+      document.getElementById('modal-pickup').textContent  = pickupVal;
+      document.getElementById('modal-drop').textContent    = dropVal;
+      document.getElementById('modal-trip-type').textContent =
+        tripType === 'two-way'
+          ? `Round Trip (${tripDays} day${tripDays > 1 ? 's' : ''})`
+          : 'One Way';
+      document.getElementById('modal-distance').textContent = `${item.travelDistance.toFixed(1)} km`;
+
+      document.getElementById('modal-base-fare').textContent   = inr(item.baseFare);
+      document.getElementById('modal-dist-label').textContent  = item.travelDistance.toFixed(1);
+      document.getElementById('modal-per-km').textContent      = Math.round(item.perKm).toLocaleString('en-IN');
+      document.getElementById('modal-dist-charge').textContent = inr(distCharge);
+      document.getElementById('modal-total-fare').textContent  = inr(item.estimatedFare);
+
+      const allowanceRow = document.getElementById('modal-allowance-row');
+      if (item.driverAllowance > 0) {
+        document.getElementById('modal-driver-allowance').textContent = inr(item.driverAllowance);
+        allowanceRow.hidden = false;
+      } else {
+        allowanceRow.hidden = true;
+      }
+
+      // Reset modal action state
+      modalSuccessMsg.hidden = true;
+      modalErrorMsg.hidden = true;
+      whatsappBtn.hidden = true;
+      confirmBtn.hidden = false;
+      confirmLabel.hidden = false;
+      confirmSpinner.hidden = true;
+      confirmBtn.disabled = false;
+
+      carModal.hidden = false;
+      document.body.style.overflow = 'hidden';
+    });
+
+    resultsGrid.appendChild(card);
+  });
+
+  const summarySuffix = tripType === 'two-way' ? ` and ${tripDays} day(s)` : '';
+  resultsSummary.textContent = `Based on ${distanceKm.toFixed(1)} km${summarySuffix}.`;
+
+  // Existing user detail panel
+  ['est-name','est-mobile','est-pickup','est-drop','est-date','est-time'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const map = { 'est-name': nameVal, 'est-mobile': mobileVal, 'est-pickup': pickupVal,
+                  'est-drop': dropVal, 'est-date': dateVal, 'est-time': timeVal };
+    el.textContent = map[id];
+  });
+
+  hideForm();
+  renderMessage(successMessage, '');
+  renderMessage(errorMessage, '');
+};
+</script>
+
+<!--
+  ═══════════════════════════════════════════════════════════════════
+  STEP 4 — Add these two keys to your .env file
+  ═══════════════════════════════════════════════════════════════════
+
+  BUSINESS_EMAIL="info@whitecalltaxi.com"
+  BUSINESS_PHONE="+91 12345 67890"
+  SMTP_FROM="info@whitecalltaxi.com"
+
+  ═══════════════════════════════════════════════════════════════════
+  STEP 5 — Copy send_booking.php to your web root
+  ═══════════════════════════════════════════════════════════════════
+  The file lives alongside index.php, distance.php, config.php
+-->

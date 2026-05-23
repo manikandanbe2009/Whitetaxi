@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 420" fill="none">
+  <rect width="220" height="420" rx="42" fill="#0f132d"/>
+  <rect x="16" y="18" width="188" height="384" rx="30" fill="#f7f9ff"/>
+  <rect x="76" y="18" width="68" height="12" rx="0 0 10 10" fill="#0b1022"/>
+  <path d="M48 72C72 114 58 150 96 182S145 227 134 269 158 338 182 364" stroke="#c7d2ff" stroke-width="6" fill="none"/>
+  <path d="M28 132c38 7 78-18 108 13s-12 96 32 123" stroke="#d5ddf7" stroke-width="6" fill="none"/>
+  <circle cx="120" cy="170" r="12" fill="#7a4dff"/>
+  <circle cx="120" cy="170" r="6" fill="#fff"/>
+  <rect x="30" y="286" width="160" height="96" rx="22" fill="#fff" stroke="#dbe3ff"/>
+  <text x="46" y="314" fill="#273665" font-size="13" font-family="Arial" font-weight="700">Driver Arriving</text>
+  <text x="46" y="338" fill="#273665" font-size="12" font-family="Arial">2 min away</text>
+  <circle cx="56" cy="360" r="16" fill="#d7e2ff"/>
+  <text x="82" y="358" fill="#273665" font-size="12" font-family="Arial" font-weight="700">John Doe</text>
+  <text x="82" y="376" fill="#6575aa" font-size="11" font-family="Arial">Mercedes S Class   4.9</text>
+</svg>

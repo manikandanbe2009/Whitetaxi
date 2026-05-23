@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 420" fill="none">
+  <rect width="220" height="420" rx="42" fill="#0f132d"/>
+  <rect x="16" y="18" width="188" height="384" rx="30" fill="url(#g)"/>
+  <rect x="76" y="18" width="68" height="12" rx="0 0 10 10" fill="#0b1022"/>
+  <text x="48" y="76" fill="#fff" font-size="16" font-family="Arial" font-weight="700">WHITE CALL TAXI</text>
+  <text x="48" y="112" fill="#fff" fill-opacity=".8" font-size="14" font-family="Arial">Book your ride</text>
+  <rect x="34" y="154" width="152" height="40" rx="14" fill="#fff"/>
+  <rect x="34" y="206" width="152" height="40" rx="14" fill="#fff"/>
+  <rect x="34" y="262" width="152" height="44" rx="16" fill="#7a4dff"/>
+  <text x="56" y="179" fill="#273665" font-size="12" font-family="Arial">Pickup Location</text>
+  <text x="56" y="231" fill="#273665" font-size="12" font-family="Arial">Drop Location</text>
+  <text x="78" y="289" fill="#fff" font-size="14" font-family="Arial" font-weight="700">Book Now</text>
+  <path d="M42 358h136c-16-23-39-38-68-38-29 0-52 15-68 38z" fill="#ffffff" fill-opacity=".94"/>
+  <path d="M64 350c12-17 30-29 54-29 23 0 42 12 53 29H64z" fill="#c8d6ff"/>
+  <defs>
+    <linearGradient id="g" x1="110" y1="18" x2="110" y2="402" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#261f66"/>
+      <stop offset=".58" stop-color="#5f2dff"/>
+      <stop offset=".59" stop-color="#f3f5ff"/>
+      <stop offset="1" stop-color="#f8f9ff"/>
+    </linearGradient>
+  </defs>
+</svg>
